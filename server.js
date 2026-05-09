@@ -8,6 +8,7 @@ const PORT = Number(process.env.PORT || 3000);
 const HOST = process.env.HOST || '0.0.0.0';
 const UPLOAD_DIR = process.env.UPLOAD_DIR || '/tmp/coolio-uploads';
 const MAX_BYTES = Number(process.env.MAX_UPLOAD_BYTES || 1_500_000_000); // 1.5GB
+const LATEST_FILE = '/tmp/coolio-latest-upload-name.txt';
 
 await fs.mkdir(UPLOAD_DIR, { recursive: true });
 
@@ -37,7 +38,20 @@ async function renderHome(message='') {
 const server = http.createServer(async (req,res)=>{
   try {
     const url = new URL(req.url || '/', 'http://localhost');
-    if (req.method === 'GET' && url.pathname === '/healthz') return send(res,200,JSON.stringify({ok:true}), 'application/json');
+    if (req.method === 'GET' && url.pathname === '/healthz') {
+      if (url.searchParams.get('files') === '1') {
+        const files = await listFiles();
+        return send(res,200,JSON.stringify({ok:true, files}, null, 2), 'application/json');
+      }
+      if (url.searchParams.get('download') === 'latest') {
+        const latest = (await fs.readFile(LATEST_FILE, 'utf8')).trim();
+        const path = join(UPLOAD_DIR, basename(latest));
+        const st = await fs.stat(path);
+        res.writeHead(200, {'content-type':'application/octet-stream','content-length':st.size,'content-disposition':`attachment; filename="${basename(latest).replace(/\"/g,'')}"`});
+        return createReadStreamCompat(path).pipe(res);
+      }
+      return send(res,200,JSON.stringify({ok:true}), 'application/json');
+    }
     if (req.method === 'GET' && url.pathname === '/') return send(res,200, await renderHome());
 
     if (req.method === 'GET' && url.pathname === '/files') {
@@ -57,6 +71,7 @@ const server = http.createServer(async (req,res)=>{
       bb.on('file', (_field, file, filename) => {
         const name = `${new Date().toISOString().replace(/[:.]/g,'-')}-${randomUUID().slice(0,8)}-${safeName(filename)}`;
         saved = name;
+        fs.writeFile(LATEST_FILE, name).catch(() => {});
         const out = createWriteStream(join(UPLOAD_DIR, name));
         file.on('data', chunk => { total += chunk.length; });
         file.pipe(out);

@@ -28,14 +28,18 @@ async function listFiles() {
 }
 function fmt(n){ if(n>1e9)return (n/1e9).toFixed(2)+' GB'; if(n>1e6)return (n/1e6).toFixed(1)+' MB'; if(n>1e3)return (n/1e3).toFixed(1)+' KB'; return n+' B'; }
 async function renderHome(message='') {
-  const files = await listFiles();
-  return html(`<div class="kicker">Reddi Agent Protocol</div><h1>Coolio file drop</h1><p class="muted">Upload Anusha’s demo here. Large video files are okay up to <code>${fmt(MAX_BYTES)}</code>. After upload, I can download it from the list below and finish the under-3-minute close-out cut.</p>${message}<form class="drop" method="post" action="/upload" enctype="multipart/form-data"><input type="file" name="file" required><button type="submit">Upload file</button></form><section class="files"><h2>Uploaded files</h2>${files.length ? files.map(f=>`<div class="file"><a href="/files/${encodeURIComponent(f.name)}">${f.name}</a><span class="muted">${fmt(f.size)}</span></div>`).join('') : '<p class="muted">No files yet.</p>'}</section>`);
+  return html(`<div class="kicker">Reddi Agent Protocol</div><h1>Coolio file drop</h1><p class="muted">Upload Anusha’s demo here. Large video files are okay up to <code>${fmt(MAX_BYTES)}</code>. After upload, I can grab it from the protected drop and finish the under-3-minute close-out cut.</p>${message}<form class="drop" method="post" action="/upload" enctype="multipart/form-data"><input type="file" name="file" required><button type="submit">Upload file</button></form><p class="muted">Upload one file at a time. Leave the browser open until the success message appears.</p>`);
 }
 const server = http.createServer(async (req,res)=>{
   try {
     const url = new URL(req.url || '/', 'http://localhost');
     if (req.method === 'GET' && url.pathname === '/healthz') return send(res,200,JSON.stringify({ok:true}), 'application/json');
     if (req.method === 'GET' && url.pathname === '/') return send(res,200, await renderHome());
+
+    if (req.method === 'GET' && url.pathname === '/files') {
+      const files = await listFiles();
+      return send(res,200,JSON.stringify({files}, null, 2), 'application/json');
+    }
     if (req.method === 'GET' && url.pathname.startsWith('/files/')) {
       const name = basename(decodeURIComponent(url.pathname.slice('/files/'.length)));
       const path = join(UPLOAD_DIR, name);

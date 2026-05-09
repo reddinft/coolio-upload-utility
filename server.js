@@ -15,7 +15,11 @@ function html(body) {
   return `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Coolio Upload</title><style>
   :root{font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:#f7f7fb;background:#09090b}body{margin:0;min-height:100vh;display:grid;place-items:center;padding:24px}.card{width:min(760px,100%);background:linear-gradient(180deg,#18181b,#111113);border:1px solid #2a2a31;border-radius:24px;padding:28px;box-shadow:0 24px 90px #0008}.kicker{color:#a78bfa;font-weight:700;letter-spacing:.08em;text-transform:uppercase;font-size:12px}h1{margin:8px 0 6px;font-size:34px}.muted{color:#b7b7c4;line-height:1.55}.drop{margin:24px 0;padding:24px;border:1px dashed #52525b;border-radius:18px;background:#0c0c0f}input[type=file]{width:100%;padding:16px;border-radius:12px;background:#18181b;color:#fafafa;border:1px solid #333}button{margin-top:16px;padding:14px 18px;border:0;border-radius:12px;background:#7c3aed;color:white;font-weight:800;font-size:16px;cursor:pointer}button:hover{background:#8b5cf6}.files{margin-top:22px}.file{display:flex;justify-content:space-between;gap:12px;padding:10px 0;border-top:1px solid #27272a}.file a{color:#c4b5fd}.ok{color:#86efac}.err{color:#fca5a5}code{background:#27272a;padding:2px 6px;border-radius:6px}</style></head><body><main class="card">${body}</main></body></html>`;
 }
-function send(res, status, body, type='text/html; charset=utf-8') { res.writeHead(status, {'content-type': type}); res.end(body); }
+function send(res, status, body, type='text/html; charset=utf-8') {
+  const payload = Buffer.isBuffer(body) ? body : Buffer.from(String(body));
+  res.writeHead(status, {'content-type': type, 'content-length': payload.length});
+  res.end(payload);
+}
 function safeName(name) { return basename(String(name || 'upload.bin')).replace(/[^a-zA-Z0-9._ -]/g, '_').slice(0, 160) || 'upload.bin'; }
 async function listFiles() {
   const entries = await fs.readdir(UPLOAD_DIR, { withFileTypes: true });
